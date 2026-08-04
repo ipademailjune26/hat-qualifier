@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bandana Qualifier" />
+  <title>Bandana Qualifier</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --purple: #534AB7; --purple-light: #EEEDFE; --purple-mid: #AFA9EC; --purple-dark: #3C3489;
+      --teal: #0F6E56; --teal-light: #E1F5EE; --teal-mid: #5DCAA5; --teal-dark: #085041;
+      --red-mid: #E24B4A; --amber-light: #FAEEDA; --amber: #BA7517;
+      --text: #1a1a1a; --text-muted: #6b6b6b; --text-hint: #aaaaaa;
+      --border: rgba(0,0,0,0.13); --border-mid: rgba(0,0,0,0.22);
+      --bg: #ffffff; --bg-secondary: #f7f7f5;
+      --radius: 10px; --radius-lg: 14px;
+    }
+    html, body { height: 100%; width: 100%; overflow: hidden; background: var(--bg-secondary); font-family: -apple-system, 'Helvetica Neue', sans-serif; color: var(--text); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; user-select: none; }
+    .screen { height: 100%; display: flex; align-items: center; justify-content: center; padding: env(safe-area-inset-top, 20px) 24px env(safe-area-inset-bottom, 20px); }
+    .card { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 2rem 1.75rem; width: 100%; max-width: 520px; }
+    .progress-bar { display: flex; gap: 5px; margin-bottom: 1.75rem; }
+    .prog-dot { height: 4px; flex: 1; border-radius: 2px; background: #e0e0e0; transition: background 0.25s; }
+    .prog-dot.done { background: var(--purple); }
+    .prog-dot.active { background: var(--purple-mid); }
+    .idle-bar-wrap { height: 3px; background: #e8e8e8; border-radius: 2px; margin-bottom: 1.5rem; overflow: hidden; display: none; }
+    .idle-bar { height: 100%; width: 100%; background: var(--purple-mid); border-radius: 2px; transform-origin: left; }
+    .step-label { font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-hint); margin-bottom: 1.25rem; }
+    .q-label { font-size: 17px; font-weight: 500; color: var(--text); margin-bottom: 0.75rem; line-height: 1.45; }
+    .q-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5; }
+    .opt-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; background: var(--bg); border: 0.5px solid var(--border-mid); border-radius: var(--radius); cursor: pointer; font-size: 15px; color: var(--text); margin-bottom: 10px; text-align: left; transition: background 0.1s, border-color 0.1s; -webkit-appearance: none; }
+    .opt-btn:active { background: var(--bg-secondary); }
+    .opt-btn.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple-dark); }
+    .opt-dot { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #ccc; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.1s, border-color 0.1s; }
+    .opt-btn.selected .opt-dot { background: var(--purple); border-color: var(--purple); }
+    .opt-btn.selected .opt-dot::after { content: ''; display: block; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+    .input-row { margin-bottom: 13px; }
+    .input-row label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 5px; letter-spacing: 0.02em; }
+    .input-row input { width: 100%; padding: 11px 13px; border: 0.5px solid var(--border-mid); border-radius: var(--radius); font-size: 16px; color: var(--text); background: var(--bg); outline: none; -webkit-appearance: none; user-select: text; }
+    .input-row input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(175,169,236,0.3); }
+    .next-btn { margin-top: 1.25rem; padding: 13px 32px; background: var(--purple); color: #fff; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 500; cursor: pointer; -webkit-appearance: none; transition: background 0.1s; }
+    .next-btn:active { background: var(--purple-dark); }
+    .restart-btn { margin-top: 1.25rem; padding: 10px 24px; background: transparent; border: 0.5px solid var(--border-mid); border-radius: var(--radius); font-size: 14px; color: var(--text-muted); cursor: pointer; -webkit-appearance: none; display: block; }
+    .restart-btn:active { background: var(--bg-secondary); }
+    .error-msg { font-size: 13px; color: var(--red-mid); margin-top: 6px; display: none; }
+    .result-box { border-radius: var(--radius-lg); padding: 2rem 1.5rem; text-align: center; border: 0.5px solid var(--border); margin-bottom: 0.25rem; }
+    .result-box.win { border-color: var(--teal-mid); background: var(--teal-light); }
+    .result-box.lose { border-color: var(--border); background: var(--bg-secondary); }
+    .result-icon { font-size: 52px; margin-bottom: 1rem; line-height: 1; }
+    .result-title { font-size: 22px; font-weight: 500; margin-bottom: 0.5rem; }
+    .result-box.win .result-title { color: var(--teal-dark); }
+    .result-box.lose .result-title { color: var(--text-muted); }
+    .result-sub { font-size: 14px; line-height: 1.5; }
+    .result-box.win .result-sub { color: var(--teal); }
+    .result-box.lose .result-sub { color: var(--text-muted); }
+    .sync-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 9px; border-radius: 20px; margin-top: 10px; font-weight: 500; }
+    .sync-pill.synced { background: var(--teal-light); color: var(--teal); }
+    .sync-pill.offline { background: var(--amber-light); color: var(--amber); }
+    .sync-pill.syncing { background: var(--purple-light); color: var(--purple-dark); }
+    .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .admin-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; padding: 24px; }
+    .admin-overlay.open { display: flex; }
+    .admin-card { background: var(--bg); border-radius: var(--radius-lg); padding: 1.5rem; width: 100%; max-width: 480px; }
+    .admin-title { font-size: 16px; font-weight: 500; margin-bottom: 0.25rem; }
+    .admin-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 1.25rem; }
+    .admin-stat { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 0.5px solid var(--border); font-size: 14px; }
+    .admin-stat:last-of-type { border-bottom: none; }
+    .admin-stat span { color: var(--text-muted); }
+    .admin-stat strong { color: var(--text); }
+    .admin-btns { display: flex; gap: 10px; margin-top: 1.25rem; flex-wrap: wrap; }
+    .admin-btn { padding: 10px 18px; border-radius: var(--radius); font-size: 14px; cursor: pointer; border: 0.5px solid var(--border-mid); background: var(--bg); color: var(--text); -webkit-appearance: none; }
+    .admin-btn.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+    .admin-btn.danger { color: var(--red-mid); border-color: var(--red-mid); }
+    .admin-btn:active { opacity: 0.75; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .admin-tap { position: fixed; top: 0; right: 0; width: 60px; height: 60px; z-index: 50; }
+  </style>
+</head>
+<body>
+
+<div class="admin-tap" id="admin-tap"></div>
+
+<div class="admin-overlay" id="admin-overlay">
+  <div class="admin-card">
+    <div class="admin-title">Admin — lead data</div>
+    <div class="admin-sub">Triple-tap the top-right corner to open this panel.</div>
+    <div id="admin-stats"></div>
+    <div class="admin-btns">
+      <button class="admin-btn primary" onclick="exportCSV()">Export CSV</button>
+      <button class="admin-btn" onclick="retrySyncAll()">Retry sync to Sheets</button>
+      <button class="admin-btn danger" onclick="clearLocalData()">Clear local data</button>
+      <button class="admin-btn" onclick="closeAdmin()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen">
+  <div class="card">
+
+    <div class="idle-bar-wrap" id="idle-bar-wrap">
+      <div class="idle-bar" id="idle-bar"></div>
+    </div>
+
+    <div class="progress-bar" id="progress-bar"></div>
+
+    <!-- Step 0: Contact info -->
+    <div class="step active" id="step-0">
+      <div class="step-label" id="label-0"></div>
+      <p class="q-label">Let's start with your info</p>
+      <div class="input-row"><label>First name</label><input id="fname" type="text" placeholder="Jane" autocomplete="off" /></div>
+      <div class="input-row"><label>Last name</label><input id="lname" type="text" placeholder="Smith" autocomplete="off" /></div>
+      <div class="input-row"><label>Company</label><input id="company" type="text" placeholder="Acme Co." autocomplete="off" /></div>
+      <div class="input-row"><label>Job title</label><input id="jobtitle" type="text" placeholder="Marketing Manager" autocomplete="off" /></div>
+      <div class="input-row"><label>Work email</label><input id="email" type="email" placeholder="jane@acme.com" autocomplete="off" /></div>
+      <div class="error-msg" id="err-0">Please fill in all fields.</div>
+      <button class="next-btn" onclick="nextContact()">Continue</button>
+    </div>
+
+    <!-- Step 1: Current Attentive customer? -->
+    <div class="step" id="step-1">
+      <div class="step-label" id="label-1"></div>
+      <p class="q-label">Are you a current Attentive customer?</p>
+      <button class="opt-btn" onclick="answer(1,'Y',this)"><span class="opt-dot"></span> Yes</button>
+      <button class="opt-btn" onclick="answer(1,'N',this)"><span class="opt-dot"></span> No</button>
+    </div>
+
+    <!-- Step 2: B2C brand? -->
+    <div class="step" id="step-2">
+      <div class="step-label" id="label-2"></div>
+      <p class="q-label">Is your company a B2C brand?</p>
+      <button class="opt-btn" onclick="answer(2,'Y',this)"><span class="opt-dot"></span> Yes</button>
+      <button class="opt-btn" onclick="answer(2,'N',this)"><span class="opt-dot"></span> No</button>
+    </div>
+
+    <!-- Step 3: On Shopify? -->
+    <div class="step" id="step-3">
+      <div class="step-label" id="label-3"></div>
+      <p class="q-label">Is your company on Shopify?</p>
+      <button class="opt-btn" onclick="answer(3,'Y',this)"><span class="opt-dot"></span> Yes</button>
+      <button class="opt-btn" onclick="answer(3,'N',this)"><span class="opt-dot"></span> No</button>
+    </div>
+
+    <!-- Step 4: Traffic (label/threshold set dynamically) -->
+    <div class="step" id="step-4">
+      <div class="step-label" id="label-4"></div>
+      <p class="q-label">What is your monthly website traffic?</p>
+      <button class="opt-btn" id="traffic-low-btn" onclick="answer(4,'LOW',this)"><span class="opt-dot"></span> <span id="traffic-low-label"></span></button>
+      <button class="opt-btn" id="traffic-high-btn" onclick="answer(4,'HIGH',this)"><span class="opt-dot"></span> <span id="traffic-high-label"></span></button>
+    </div>
+
+    <!-- Step 5: SMS program? (only shown for non-Shopify + under 25k) -->
+    <div class="step" id="step-5">
+      <div class="step-label" id="label-5"></div>
+      <p class="q-label">Do you currently have an SMS program?</p>
+      <button class="opt-btn" onclick="answer(5,'Y',this)"><span class="opt-dot"></span> Yes</button>
+      <button class="opt-btn" onclick="answer(5,'N',this)"><span class="opt-dot"></span> No</button>
+    </div>
+
+    <!-- Step 6: Influence in martech? -->
+    <div class="step" id="step-6">
+      <div class="step-label" id="label-6"></div>
+      <p class="q-label">Do you have influence in sourcing new marketing technology at your company?</p>
+      <p class="q-sub">This could mean evaluating tools, recommending vendors, or making purchase decisions.</p>
+      <button class="opt-btn" onclick="answer(6,'Y',this)"><span class="opt-dot"></span> Yes</button>
+      <button class="opt-btn" onclick="answer(6,'N',this)"><span class="opt-dot"></span> No</button>
+    </div>
+
+    <!-- Result -->
+    <div class="step" id="step-result">
+      <div class="result-box" id="result-box">
+        <div class="result-icon" id="result-icon"></div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-sub" id="result-sub"></div>
+        <div id="sync-status"></div>
+      </div>
+      <button class="restart-btn" onclick="restart()">Start over</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const SHEET_URL = 'https://script.google.com/macros/s/AKfycbypGa_whKsMKVqFZemMO8pByPOfHoeO_r69gtWaC1SHnZM6umprlIuvZT8HdaaS2ZQ/exec';
+  const IDLE_MS = 60000;
+  const STORAGE_KEY = 'bandana_qualifier_leads';
+  const answers = {};
+  let idleTimer = null;
+
+  // Progress bar is dynamic since step 5 is conditional (max 7 or 8 dots)
+  // We'll use 8 dots and fill based on position
+  const TOTAL_DOTS = 8;
+  (function buildProgressBar() {
+    const bar = document.getElementById('progress-bar');
+    for (let i = 0; i < TOTAL_DOTS; i++) {
+      const d = document.createElement('div');
+      d.className = 'prog-dot' + (i === 0 ? ' active' : '');
+      d.id = 'pd' + i;
+      bar.appendChild(d);
+    }
+  })();
+
+  function updateProgress(stepIndex, totalSteps) {
+    for (let i = 0; i < TOTAL_DOTS; i++) {
+      const dot = document.getElementById('pd' + i);
+      if (!dot) continue;
+      dot.className = 'prog-dot' + (i < stepIndex ? ' done' : i === stepIndex ? ' active' : '');
+    }
+  }
+
+  // Step label helper
+  function setLabel(stepEl, current, total) {
+    const el = stepEl.querySelector('.step-label');
+    if (el) el.textContent = 'Step ' + current + ' of ' + total;
+  }
+
+  // ─── FORM NAVIGATION ─────────────────────────────────────────────
+  // visibleStep = the visual step number (1-based, for display)
+  // totalVisible = total visible steps for this path
+  let visibleStep = 1;
+  let totalVisible = 7; // default (no SMS step); will be 8 if SMS step shown
+
+  function showStep(id, vStep, vTotal) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById(id);
+    el.classList.add('active');
+    setLabel(el, vStep, vTotal);
+    updateProgress(vStep - 1, vTotal);
+    resetIdleTimer();
+  }
+
+  function nextContact() {
+    const fname = document.getElementById('fname').value.trim();
+    const lname = document.getElementById('lname').value.trim();
+    const company = document.getElementById('company').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const err = document.getElementById('err-0');
+    if (!fname || !lname || !company || !email) { err.style.display = 'block'; return; }
+    err.style.display = 'none';
+    answers.contact = { fname, lname, company, jobtitle: document.getElementById('jobtitle').value.trim(), email };
+    showStep('step-1', 2, 7); // total may change later; we'll update
+  }
+
+  function answer(step, val, btn) {
+    answers['q' + step] = val;
+    btn.parentElement.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+
+    setTimeout(() => {
+      if (step === 1) {
+        // Attentive customer → instant bandana
+        if (val === 'Y') { showResult(true, 'attentive_customer'); return; }
+        showStep('step-2', 3, 7);
+
+      } else if (step === 2) {
+        // Not B2C → disqualify
+        if (val === 'N') { showResult(false, 'not_b2c'); return; }
+        showStep('step-3', 4, 7);
+
+      } else if (step === 3) {
+        // Shopify branch — set traffic button labels
+        if (val === 'Y') {
+          document.getElementById('traffic-low-label').textContent = 'Less than 10,000 / month';
+          document.getElementById('traffic-high-label').textContent = '10,000 or more / month';
+        } else {
+          document.getElementById('traffic-low-label').textContent = 'Less than 25,000 / month';
+          document.getElementById('traffic-high-label').textContent = '25,000 or more / month';
+        }
+        showStep('step-4', 5, 7);
+
+      } else if (step === 4) {
+        const onShopify = answers.q3 === 'Y';
+        if (val === 'HIGH') {
+          // Meets traffic threshold → skip SMS question
+          showStep('step-6', 6, 7);
+        } else {
+          // Low traffic
+          if (onShopify) {
+            // Shopify + under 10k → disqualify immediately
+            showResult(false, 'low_traffic'); return;
+          } else {
+            // Not Shopify + under 25k → ask SMS question
+            showStep('step-5', 6, 8);
+          }
+        }
+
+      } else if (step === 5) {
+        // SMS program question (non-Shopify + low traffic only)
+        if (val === 'N') { showResult(false, 'low_traffic_no_sms'); return; }
+        // Has SMS → continue to influence question
+        showStep('step-6', 7, 8);
+
+      } else if (step === 6) {
+        // Influence
+        if (val === 'N') { showResult(false, 'no_influence'); return; }
+        showResult(true, 'qualified');
+      }
+    }, 280);
+  }
+
+  function showResult(qualified, reason) {
+    const box = document.getElementById('result-box');
+    const icon = document.getElementById('result-icon');
+    const title = document.getElementById('result-title');
+    const sub = document.getElementById('result-sub');
+    document.getElementById('sync-status').innerHTML = '';
+
+    if (qualified) {
+      box.className = 'result-box win';
+      icon.textContent = '🤠';
+      title.textContent = 'You qualify for a bandana!';
+      sub.textContent = 'Grab one from the booth — enjoy!';
+    } else {
+      box.className = 'result-box lose';
+      icon.textContent = '✕';
+      title.textContent = 'Not a match this time';
+      const msgs = {
+        not_b2c: "We're sorry, we're unable to give you a bandana at this time — thanks for stopping by!",
+        low_traffic: "We're sorry, we're unable to give you a bandana at this time — thanks for stopping by!",
+        low_traffic_no_sms: "We're sorry, we're unable to give you a bandana at this time — thanks for stopping by!",
+        no_influence: "We're sorry, we're unable to give you a bandana at this time — thanks for stopping by!"
+      };
+      sub.textContent = msgs[reason] || "Thanks for stopping by!";
+    }
+
+    // Show result without step label
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-result').classList.add('active');
+    // Fill progress bar all the way
+    for (let i = 0; i < TOTAL_DOTS; i++) {
+      document.getElementById('pd' + i).className = 'prog-dot done';
+    }
+    resetIdleTimer();
+    submitEntry(qualified, reason);
+  }
+
+  // ─── LOCAL STORAGE ───────────────────────────────────────────────
+  function getLeads() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveLead(entry) {
+    const leads = getLeads(); leads.push(entry);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+  }
+  function clearLeads() { localStorage.removeItem(STORAGE_KEY); }
+
+  // ─── GOOGLE SHEETS SYNC ──────────────────────────────────────────
+  async function syncToSheets(entry) {
+    if (!SHEET_URL || SHEET_URL.includes('PASTE_YOUR')) return 'no_url';
+    try {
+      const res = await fetch(SHEET_URL, { method: 'POST', body: JSON.stringify(entry) });
+      const json = await res.json();
+      return json.success ? 'synced' : 'error';
+    } catch(e) { return 'offline'; }
+  }
+
+  async function retrySyncAll() {
+    if (!SHEET_URL || SHEET_URL.includes('PASTE_YOUR')) { alert('No Google Sheets URL configured. Export CSV to retrieve data.'); return; }
+    const all = getLeads();
+    const pending = all.filter(l => l.syncStatus !== 'synced');
+    if (!pending.length) { alert('All leads are already synced.'); return; }
+    let synced = 0;
+    for (let i = 0; i < all.length; i++) {
+      if (all[i].syncStatus !== 'synced') {
+        const result = await syncToSheets(all[i]);
+        if (result === 'synced') { all[i].syncStatus = 'synced'; synced++; }
+      }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    alert('Synced ' + synced + ' of ' + pending.length + ' pending leads.');
+    renderAdminStats();
+  }
+
+  async function submitEntry(qualified, reason) {
+    const entry = {
+      timestamp: new Date().toISOString(),
+      fname: answers.contact.fname,
+      lname: answers.contact.lname,
+      company: answers.contact.company,
+      jobtitle: answers.contact.jobtitle,
+      email: answers.contact.email,
+      q1_attentive: answers.q1 || '',
+      q2_b2c: answers.q2 || '',
+      q3_shopify: answers.q3 || '',
+      q4_traffic: answers.q4 || '',
+      q5_sms: answers.q5 || '',
+      q6_influence: answers.q6 || '',
+      qualified: qualified,
+      qualify_reason: reason,
+      syncStatus: 'pending'
+    };
+    saveLead(entry);
+    setSyncPill('syncing');
+    const result = await syncToSheets(entry);
+    const leads = getLeads();
+    leads[leads.length - 1].syncStatus = result === 'synced' ? 'synced' : 'offline';
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(leads));
+    setSyncPill(result === 'synced' ? 'synced' : 'offline');
+  }
+
+  function setSyncPill(status) {
+    const el = document.getElementById('sync-status');
+    if (status === 'syncing') el.innerHTML = '<div class="sync-pill syncing"><span class="sync-dot"></span>Saving...</div>';
+    else if (status === 'synced') el.innerHTML = '<div class="sync-pill synced"><span class="sync-dot"></span>Saved to Sheets</div>';
+    else if (status === 'offline') el.innerHTML = '<div class="sync-pill offline"><span class="sync-dot"></span>Saved locally — will sync when online</div>';
+    else el.innerHTML = '';
+  }
+
+  // ─── CSV EXPORT ──────────────────────────────────────────────────
+  function exportCSV() {
+    const leads = getLeads();
+    if (!leads.length) { alert('No leads saved yet.'); return; }
+    const headers = ['Timestamp','First Name','Last Name','Company','Job Title','Email','Q1 - Attentive customer','Q2 - B2C brand','Q3 - On Shopify','Q4 - Traffic','Q5 - Has SMS program','Q6 - Influences martech','Qualified','Qualify Reason','Sync Status'];
+    const rows = leads.map(l => [
+      l.timestamp, l.fname, l.lname, l.company, l.jobtitle, l.email,
+      l.q1_attentive, l.q2_b2c, l.q3_shopify, l.q4_traffic, l.q5_sms, l.q6_influence,
+      l.qualified ? 'YES' : 'NO', l.qualify_reason || '', l.syncStatus
+    ].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bandana-qualifier-leads-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ─── ADMIN PANEL ─────────────────────────────────────────────────
+  let adminTapCount = 0, adminTapTimer = null;
+  document.getElementById('admin-tap').addEventListener('pointerdown', () => {
+    adminTapCount++;
+    clearTimeout(adminTapTimer);
+    adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 800);
+    if (adminTapCount >= 3) { adminTapCount = 0; openAdmin(); }
+  });
+  function openAdmin() { renderAdminStats(); document.getElementById('admin-overlay').classList.add('open'); }
+  function closeAdmin() { document.getElementById('admin-overlay').classList.remove('open'); }
+  function renderAdminStats() {
+    const leads = getLeads();
+    const qualified = leads.filter(l => l.qualified).length;
+    const synced = leads.filter(l => l.syncStatus === 'synced').length;
+    const pending = leads.filter(l => l.syncStatus !== 'synced').length;
+    document.getElementById('admin-stats').innerHTML =
+      '<div class="admin-stat"><span>Total leads</span><strong>' + leads.length + '</strong></div>' +
+      '<div class="admin-stat"><span>Qualified</span><strong>' + qualified + '</strong></div>' +
+      '<div class="admin-stat"><span>Not qualified</span><strong>' + (leads.length - qualified) + '</strong></div>' +
+      '<div class="admin-stat"><span>Synced to Sheets</span><strong>' + synced + '</strong></div>' +
+      '<div class="admin-stat"><span>Pending sync</span><strong>' + pending + '</strong></div>';
+  }
+  function clearLocalData() {
+    if (confirm('Delete all locally saved leads? This cannot be undone.')) { clearLeads(); renderAdminStats(); alert('Local data cleared.'); }
+  }
+
+  // ─── IDLE TIMER ──────────────────────────────────────────────────
+  function resetIdleTimer() {
+    clearTimeout(idleTimer); stopIdleBar();
+    idleTimer = setTimeout(() => restart(), IDLE_MS);
+    if (!document.getElementById('step-0').classList.contains('active')) startIdleBar();
+  }
+  function startIdleBar() {
+    const wrap = document.getElementById('idle-bar-wrap'), bar = document.getElementById('idle-bar');
+    wrap.style.display = 'block';
+    bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+    void bar.offsetWidth;
+    bar.style.transition = 'transform ' + (IDLE_MS/1000) + 's linear';
+    bar.style.transform = 'scaleX(0)';
+  }
+  function stopIdleBar() {
+    const wrap = document.getElementById('idle-bar-wrap'), bar = document.getElementById('idle-bar');
+    wrap.style.display = 'none'; bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+  }
+
+  function restart() {
+    clearTimeout(idleTimer); stopIdleBar();
+    document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+    ['fname','lname','company','jobtitle','email'].forEach(id => document.getElementById(id).value = '');
+    Object.keys(answers).forEach(k => delete answers[k]);
+    document.getElementById('err-0').style.display = 'none';
+    // Reset progress bar
+    for (let i = 0; i < TOTAL_DOTS; i++) {
+      document.getElementById('pd' + i).className = 'prog-dot' + (i === 0 ? ' active' : '');
+    }
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step-0').classList.add('active');
+    resetIdleTimer();
+  }
+
+  document.body.addEventListener('pointerdown', resetIdleTimer);
+  document.body.addEventListener('keydown', resetIdleTimer);
+  resetIdleTimer();
+</script>
+</body>
+</html>
